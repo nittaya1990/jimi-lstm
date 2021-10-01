@@ -86,14 +86,12 @@ class MIDIDataset(Dataset):
 
         n_patterns = len(network_input)
 
-        # Reshape for LSTM layers
+        # Reshape for LSTM layers + normalize
         network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
-
-        # Normalize input
         self.network_input = network_input / float(n_vocab)
 
         # One-hot encode output
-        self.network_output = to_categorical(network_output)
+        self.network_output = to_categorical(network_output, dtype='double')
 
 
     def __len__(self):
@@ -108,9 +106,7 @@ def get_notes():
     """
     Convert midi songs to notes. Serialize when done.
     """
-
     notes = []
-
     for f in glob.glob('herbie_midi_songs/*.mid'):
         print('Parsing song: ', f)
         midi = converter.parse(f)
@@ -140,7 +136,6 @@ def load_notes():
     Deserialize notes file.
     """
     notes = []
-
     with open('data/notes', 'rb') as filepath:
         notes = pickle.load(filepath)
 
@@ -167,11 +162,6 @@ def train_network():
         for i, data in enumerate(loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
-
-            print('inputs')
-            print(inputs.shape)
-            print('labels')
-            print(labels.shape)
 
             # zero the parameter gradients
             optimizer.zero_grad()
