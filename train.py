@@ -176,6 +176,8 @@ def train_network():
             # zero the parameter gradients
             optimizer.zero_grad()
             outputs = model(inputs)
+            l, n, m = outputs.shape
+            outputs = torch.reshape(outputs, (n, m))
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
