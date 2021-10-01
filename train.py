@@ -43,20 +43,35 @@ class Net(nn.Module):
     def __init__(self, network_input, n_vocab):
         super(Net, self).__init__()
 
-        self.features = nn.Sequential(
-            nn.LSTM(input_size=1, hidden_size=512, batch_first=True),
-            nn.Dropout(p=0.3),
-            nn.LSTM(512, 512, batch_first=True),
-            nn.Dropout(p=0.3),
-            nn.LSTM(512, 256, batch_first=True),
-            nn.Linear(256, 256),
-            nn.Dropout(p=0.3),
-            nn.Linear(256, n_vocab),
-            nn.LogSoftmax(dim=1)
-        )
+        self.lstm1 = nn.LSTM(input_size=100, hidden_size=512,
+                             dropout=0.3, batch_first=True)
+        self.lstm2 = nn.LSTM(input_size=512, hidden_size=512, dropout=0.3,
+                             bidirectional=True, batch_first=True)
+        self.lstm3 = nn.LSTM(input_size=1024, hidden_size=512,
+                             bidirectional=True, batch_first=True)
+        self.dense1 = nn.Linear(1024, 256)
+        self.dropout = nn.Dropout(0.3)
+        self.dense2 = nn.Linear(256, n_vocab)
+        self.softmax = nn.Softmax(dim=2)
 
     def forward(self, x):
-        return self.features(x)
+        # print(type(x))
+        # print(list(x.size()))
+        x = x.permute([2,0,1])
+        x, _ = self.lstm1(x)
+        # print(list(x.size()))
+        x, _ = self.lstm2(x)
+        # print(list(x.size()))
+        x, _ = self.lstm3(x)
+        # print(list(x.size()))
+        x = self.dense1(x)
+        # print(list(x.size()))
+        x = self.dropout(x)
+        x = self.dense2(x)
+        # print(list(x.size()))
+        x = self.softmax(x)
+
+        return x
 
 
 class MIDIDataset(Dataset):
@@ -87,7 +102,7 @@ class MIDIDataset(Dataset):
         network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
 
         # Normalize input
-        self.network_input = torch.from_numpy(network_input / float(n_vocab)).float()
+        self.network_input = network_input / float(n_vocab)
 
         # One-hot encode output
         self.network_output = to_categorical(network_output)
@@ -156,6 +171,8 @@ def train_network():
     loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
     model = Net(dataset.network_input, n_vocab)
+    model.double()
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.1)
 
@@ -164,6 +181,11 @@ def train_network():
         for i, data in enumerate(loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+
+            print('inputs')
+            print(inputs.shape)
+            print('labels')
+            print(labels.shape)
 
             # zero the parameter gradients
             optimizer.zero_grad()
