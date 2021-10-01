@@ -28,10 +28,10 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 
 
 class Net(nn.Module):
-    def __init__(self, network_input, n_vocab):
+    def __init__(self, n_vocab, sequence_length=100):
         super(Net, self).__init__()
 
-        self.lstm1 = nn.LSTM(input_size=100, hidden_size=512,
+        self.lstm1 = nn.LSTM(input_size=sequence_length, hidden_size=512,
                              dropout=0.3, batch_first=True)
         self.lstm2 = nn.LSTM(input_size=512, hidden_size=512, dropout=0.3,
                              bidirectional=True, batch_first=True)
@@ -150,15 +150,13 @@ def load_notes():
 def train_network():
     """ Train! that! network! """
     notes = load_notes()
-
-    # Number of pitch names
     n_vocab = len(set(notes))
-    #network_input, network_output = prepare_sequences(notes, n_vocab)
+    sequence_length = 100
 
-    dataset = MIDIDataset(notes, n_vocab)
+    dataset = MIDIDataset(notes, n_vocab, sequence_length)
     loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-    model = Net(dataset.network_input, n_vocab)
+    model = Net(n_vocab, sequence_length)
     model.double()
 
     criterion = nn.CrossEntropyLoss()
@@ -177,8 +175,6 @@ def train_network():
 
             # zero the parameter gradients
             optimizer.zero_grad()
-
-            # forward + backward + optimize
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
