@@ -46,6 +46,7 @@ def create_network(network_input, n_vocab):
     """ Recreate neural network structure. """
     print('Creating network...')
 
+    """
     model = Sequential()
     model.add(CuDNNLSTM(
         512,
@@ -60,6 +61,22 @@ def create_network(network_input, n_vocab):
     model.add(Dropout(0.3))
     model.add(Dense(n_vocab)) # Number of possible outputs
     model.add(Activation('softmax'))
+    """
+
+    self.features = nn.Sequential(
+            nn.LSTM(in_channels=1, out_channels=32, kernel_size=3, stride=1),
+            nn.Dropout(p=0.3),
+            nn.LSTM(in_channels=1, out_channels=32, kernel_size=3, stride=1),
+            nn.Dropout(p=0.3),
+            nn.LSTM(in_channels=1, out_channels=32, kernel_size=3, stride=1),
+            nn.Flatten(),
+            nn.Linear(in_features=9216, out_features=128),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=128, out_features=10),
+            nn.LogSoftmax(dim=1)
+        )
+
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 

@@ -4,11 +4,102 @@ import numpy as np
 
 from music21 import converter, instrument, note, chord
 
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation
-from keras.layers.cudnn_recurrent import CuDNNLSTM
-from keras.utils import np_utils
-from keras.callbacks import ModelCheckpoint
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+
+def to_categorical(y, num_classes=None, dtype='float32'):
+    """Converts a class vector (integers) to binary class matrix.
+    E.g. for use with `categorical_crossentropy`.
+    Args:
+        y: Array-like with class values to be converted into a matrix
+            (integers from 0 to `num_classes - 1`).
+        num_classes: Total number of classes. If `None`, this would be inferred
+            as `max(y) + 1`.
+        dtype: The data type expected by the input. Default: `'float32'`.
+    Returns:
+        A binary matrix representation of the input. The class axis is placed
+        last.
+    """
+    y = np.array(y, dtype='int')
+    input_shape = y.shape
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
+    y = y.ravel()
+    if not num_classes:
+        num_classes = np.max(y) + 1
+    n = y.shape[0]
+    categorical = np.zeros((n, num_classes), dtype=dtype)
+    categorical[np.arange(n), y] = 1
+    output_shape = input_shape + (num_classes,)
+    categorical = np.reshape(categorical, output_shape)
+
+    return categorical
+
+
+class Net(nn.Module):
+    def __init__(self, network_input, n_vocab):
+        super(Net, self).__init__()
+
+        self.features = nn.Sequential(
+            nn.LSTM(input_size=1, hidden_size=512, batch_first=True),
+            nn.Dropout(p=0.3),
+            nn.LSTM(512, 512, batch_first=True),
+            nn.Dropout(p=0.3),
+            nn.LSTM(512, 256, batch_first=True),
+            nn.Linear(256, 256),
+            nn.Dropout(p=0.3),
+            nn.Linear(256, n_vocab),
+            nn.LogSoftmax(dim=1)
+        )
+
+    def forward(self, x):
+        return self.features(x)
+
+
+class MIDIDataset(Dataset):
+    def __init__(self, notes, n_vocab, sequence_length=100):
+        # Get pitch names
+        pitch_names = sorted(set(n for n in notes))
+
+        # Map pitches to integers
+        note_to_int = dict((note, number) for number, note in enumerate(pitch_names))
+
+        network_input = []
+        network_output = []
+
+        # Create input sequences and the corresponding outputs
+        for i in range(0, (len(notes) - sequence_length), 1):
+            seq_in = notes[i:i + sequence_length]
+            seq_out = notes[i + sequence_length]
+
+            seq_in_int = [note_to_int[char] for char in seq_in]
+            network_input.append(seq_in_int)
+
+            seq_out_int = note_to_int[seq_out]
+            network_output.append(seq_out_int)
+
+        n_patterns = len(network_input)
+
+        # Reshape for LSTM layers
+        network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
+
+        # Normalize input
+        self.network_input = torch.from_numpy(network_input / float(n_vocab)).float()
+
+        # One-hot encode output
+        self.network_output = to_categorical(network_output)
+
+
+    def __len__(self):
+        return len(self.network_input)
+
+
+    def __getitem__(self, i):
+        return self.network_input[i], self.network_output[i]
+
 
 def get_notes():
     """
@@ -53,99 +144,42 @@ def load_notes():
     return notes
 
 
-def prepare_sequences(notes, n_vocab):
-    print('Preparing sequences...')
-
-    sequence_length = 100
-
-    # Get pitch names
-    pitch_names = sorted(set(n for n in notes))
-
-    # Map pitches to integers
-    note_to_int = dict((note, number) for number, note in enumerate(pitch_names))
-
-    network_input = []
-    network_output = []
-
-    # Create input sequences and the corresponding outputs
-    for i in range(0, (len(notes) - sequence_length), 1):
-        seq_in = notes[i:i + sequence_length]
-        seq_out = notes[i + sequence_length]
-
-        seq_in_int = [note_to_int[char] for char in seq_in]
-        network_input.append(seq_in_int)
-
-        seq_out_int = note_to_int[seq_out]
-        network_output.append(seq_out_int)
-
-    n_patterns = len(network_input)
-
-    # Reshape for LSTM layers
-    network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
-
-    # Normalize input
-    network_input = network_input / float(n_vocab)
-
-    # One-hot encode output
-    network_output = np_utils.to_categorical(network_output)
-
-    return (network_input, network_output)
-
-
-def create_network(network_input, n_vocab):
-    print('Creating network...')
-
-    model = Sequential()
-
-    model.add(CuDNNLSTM(
-        512,
-        input_shape=(network_input.shape[1], network_input.shape[2]),
-        return_sequences=True
-        ))
-    model.add(Dropout(0.3)) # Fraction of input units to be dropped during training
-    model.add(CuDNNLSTM(512, return_sequences=True))
-    model.add(Dropout(0.3))
-    model.add(CuDNNLSTM(256))
-    model.add(Dense(256))
-    model.add(Dropout(0.3))
-    model.add(Dense(n_vocab)) # Number of possible outputs
-    model.add(Activation('softmax'))
-
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    return model
-
-
-def train(model, network_input, network_output):
-    """ Train the neural network. """
-
-    print('Training model...')
-
-    filepath = 'weights-improvement-{epoch:02d}-{loss:.4f}-bigger.hdf5'
-    checkpoint = ModelCheckpoint(
-            filepath,
-            monitor='loss',
-            verbose=0,
-            save_best_only=True,
-            mode='min'
-            )
-    callbacks_list = [checkpoint]
-
-    model.fit(network_input, network_output, epochs=200, batch_size=64, callbacks=callbacks_list)
-
-
 def train_network():
     """ Train! that! network! """
     notes = load_notes()
 
     # Number of pitch names
     n_vocab = len(set(notes))
+    #network_input, network_output = prepare_sequences(notes, n_vocab)
 
-    network_input, network_output = prepare_sequences(notes, n_vocab)
+    dataset = MIDIDataset(notes, n_vocab)
+    loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-    model = create_network(network_input, n_vocab)
+    model = Net(dataset.network_input, n_vocab)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.1)
 
-    train(model, network_input, network_output)
+    for epoch in range(200):
+        running_loss = 0.0
+        for i, data in enumerate(loader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 2000 == 1999:    # print every 2000 mini-batches
+                print('[%d, %5d] loss: %.3f' %
+                    (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
 
 
 if __name__ == '__main__':
