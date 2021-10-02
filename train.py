@@ -6,11 +6,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import MIDIDataset
-from generate import generate_notes
+from generate import generate_notes, create_midi
 from utils import get_notes, load_notes
 
 
@@ -66,6 +67,7 @@ if __name__ == '__main__':
 
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = StepLR(optimizer, step_size=1, gamma=0.97)
 
     for epoch in range(20):
         running_loss = 0.0
@@ -91,6 +93,7 @@ if __name__ == '__main__':
 
         avg_loss = running_loss / len(loader)
         print('EPOCH %3d: loss %.5f' % (epoch + 1, avg_loss))
+        scheduler.step()
 
     model_cpu = model.cpu()
     torch.save(model, f'jimi_lstm.pt')
