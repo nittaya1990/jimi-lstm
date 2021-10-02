@@ -176,3 +176,6 @@ if __name__ == '__main__':
             # print statistics
             print('[%d, %5d] loss: %.3f' %
                 (epoch + 1, i + 1, running_loss / len(loader)))
+
+    model_cpu = model.cpu()
+    torch.save(model, f'jimi_lstm.pt')
