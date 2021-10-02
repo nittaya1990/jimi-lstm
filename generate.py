@@ -1,5 +1,5 @@
 import pickle
-import numpy
+import numpy as np
 
 from music21 import instrument, note, stream, chord
 
@@ -26,14 +26,14 @@ def generate():
     create_midi(prediction_output)
 
 
-def generate_notes(model, network_input, pitchnames, n_vocab):
+def generate_notes(model, notes, network_input, n_vocab):
     """ Generate notes from neural net based on input sequence of notes. """
     print('Generating notes...')
 
     # Pick random sequence from input as starting point
-    start = numpy.random.randint(0, len(network_input)-1)
+    start = np.random.randint(0, len(network_input)-1)
 
-    int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
+    int_to_note = dict((number, note) for number, note in enumerate(notes))
 
     pattern = network_input[start]
     prediction_output = []
@@ -41,18 +41,19 @@ def generate_notes(model, network_input, pitchnames, n_vocab):
     # Generate 200 notes
     n = 250
     for note_index in range(n):
-        prediction_input = numpy.reshape(pattern, (1, len(pattern), 1))
+        prediction_input = np.reshape(pattern, (1, len(pattern), 1))
         prediction_input = prediction_input / float(n_vocab)
 
-        prediction = model.predict(prediction_input, verbose=0)
+        my_input = torch.DoubleTensor(prediction_input.tolist())
+        prediction = model(my_input).detach().cpu().numpy()
 
         # Take most probable prediction, convert to note, append to output
-        index = numpy.argmax(prediction)
+        index = np.argmax(prediction)
         result = int_to_note[index]
         prediction_output.append(result)
 
         # Scoot input over by 1 note
-        pattern.append(index)
+        pattern = np.append(pattern, index)
         pattern = pattern[1:len(pattern)]
 
     return prediction_output
