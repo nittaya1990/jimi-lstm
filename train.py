@@ -143,6 +143,9 @@ def load_notes():
 
 
 if __name__ == '__main__':
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+
     notes = load_notes()
     n_vocab = len(set(notes))
     sequence_length = 100
@@ -152,6 +155,7 @@ if __name__ == '__main__':
 
     model = Net(n_vocab, sequence_length)
     model.double()
+    model.to(device)
 
     criterion = nn.BCELoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001)
@@ -161,6 +165,7 @@ if __name__ == '__main__':
         for i, data in enumerate(loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            inputs, labels = inputs.to(device), labels.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
