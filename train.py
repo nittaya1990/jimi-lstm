@@ -68,7 +68,7 @@ if __name__ == '__main__':
     model.to(device)
 
     criterion = nn.BCELoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(20):
         running_loss = 0.0
