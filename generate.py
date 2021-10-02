@@ -3,9 +3,27 @@ import numpy
 
 from music21 import instrument, note, stream, chord
 
+import torch
+
+from dataset import MIDIDataset
+from utils import get_notes, load_notes
+
 def generate():
     """ Generate a piano midi file """
-    pass
+    notes = load_notes()
+    n_vocab = len(set(notes))
+    sequence_length = 100
+
+    # Convert notes into numerical input
+    dataset = MIDIDataset(notes, n_vocab, sequence_length)
+    network_input = dataset.network_input.tolist()
+
+    # Use the model to generate a midi
+    model = torch.load(f'jimi_lstm.pt')
+    model.eval()
+    prediction_output = generate_notes(model, notes, network_input,
+                                    len(set(notes)))
+    create_midi(prediction_output)
 
 
 def generate_notes(model, network_input, pitchnames, n_vocab):
