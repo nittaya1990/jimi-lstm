@@ -10,6 +10,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
+from generate import generate_notes
+
 def to_categorical(y, num_classes=None, dtype='float32'):
     """Converts a class vector (integers) to binary class matrix.
     Args:
@@ -184,3 +186,11 @@ if __name__ == '__main__':
 
     model_cpu = model.cpu()
     torch.save(model, f'jimi_lstm.pt')
+
+    # Use the model to generate a midi
+    model = torch.load(f'jimi_lstm.pt')
+    model.eval()
+
+    prediction_output = generate_notes(model, notes, dataset.network_input,
+                                        len(set(notes)))
+    create_midi(prediction_output)
