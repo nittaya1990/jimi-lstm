@@ -21,10 +21,10 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 class MIDIDataset(Dataset):
     def __init__(self, notes, n_vocab, sequence_length=100):
         # Get pitch names
-        pitch_names = sorted(set(n for n in notes))
+        notes = sorted(set(n for n in notes))
 
         # Map pitches to integers
-        note_to_int = dict((note, number) for number, note in enumerate(pitch_names))
+        note_to_int = dict((note, number) for number, note in enumerate(notes))
 
         network_input = []
         network_output = []

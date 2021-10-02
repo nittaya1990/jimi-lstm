@@ -1,4 +1,7 @@
+import glob
 import pickle
+
+from music21 import converter, instrument, note, chord
 
 def get_notes():
     """

@@ -1,8 +1,6 @@
 import pickle
 import numpy as np
 
-from music21 import converter, instrument, note, chord
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -91,9 +89,8 @@ if __name__ == '__main__':
                 running_loss += loss.item()
                 tepoch.set_postfix(loss=loss.item())
 
-        avg_loss = running_loss/len(loader)
-        lr = optimizer.param_groups[0]['lr']
-        print('EPOCH %3d: loss %.5f' % (epoch+1, avg_loss))
+        avg_loss = running_loss / len(loader)
+        print('EPOCH %3d: loss %.5f' % (epoch + 1, avg_loss))
 
     model_cpu = model.cpu()
     torch.save(model, f'jimi_lstm.pt')

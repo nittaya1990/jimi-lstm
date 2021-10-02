@@ -31,15 +31,14 @@ def generate_notes(model, notes, network_input, n_vocab):
     print('Generating notes...')
 
     # Pick random sequence from input as starting point
-    start = np.random.randint(0, len(network_input)-1)
+    start = np.random.randint(0, len(network_input) - 1)
 
     int_to_note = dict((number, note) for number, note in enumerate(notes))
 
     pattern = network_input[start]
     prediction_output = []
 
-    # Generate 200 notes
-    n = 250
+    n = 100
     for note_index in range(n):
         prediction_input = np.reshape(pattern, (1, len(pattern), 1))
         prediction_input = prediction_input / float(n_vocab)
