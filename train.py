@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from dataset import MIDIDataset
 from generate import generate_notes
@@ -69,27 +70,31 @@ if __name__ == '__main__':
     criterion = nn.BCELoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001)
 
-    for epoch in range(200):
+    for epoch in range(20):
         running_loss = 0.0
-        for i, data in enumerate(loader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            l, n, m = outputs.shape
-            outputs = torch.reshape(outputs, (n, m))
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        with tqdm(loader, unit="batch") as tepoch:
+            tepoch.set_description(f"Epoch {epoch+1}")
+            for data in tepoch:
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
 
-            running_loss += loss.item()
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                outputs = model(inputs)
+                l, n, m = outputs.shape
+                outputs = torch.reshape(outputs, (n, m))
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-            # print statistics
-            print('[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / len(loader)))
+                running_loss += loss.item()
+                tepoch.set_postfix(loss=loss.item())
+
+        avg_loss = running_loss/len(loader)
+        lr = optimizer.param_groups[0]['lr']
+        print('EPOCH %3d: loss %.5f' % (epoch+1, avg_loss))
 
     model_cpu = model.cpu()
     torch.save(model, f'jimi_lstm.pt')

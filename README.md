@@ -10,6 +10,7 @@ Generate melodies using an LSTM neural network.
 ```
 $ pip install music21
 $ pip install pytorch
+$ pip install tqdm
 ```
 
 ### Usage
