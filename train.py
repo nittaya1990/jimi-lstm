@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from pathlib import Path
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -54,7 +55,10 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
 
+    if not Path('data/notes').is_file():
+        get_notes()
     notes = load_notes()
+
     n_vocab = len(set(notes))
     sequence_length = 100
 

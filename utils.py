@@ -26,7 +26,7 @@ def get_notes():
             elif isinstance(element, chord.Chord):
                 notes.append('.'.join(str(n) for n in element.normalOrder))
 
-    with open('data/notes', 'wb') as filepath:
+    with open('data/notes', 'w+b') as filepath:
         pickle.dump(notes, filepath)
 
     return notes
