@@ -8,7 +8,7 @@ def get_notes():
     Convert midi songs to notes. Serialize when done.
     """
     notes = []
-    for f in glob.glob('herbie_midi_songs/*.mid'):
+    for f in glob.glob('ff_midi_songs/*.mid'):
         print('Parsing song: ', f)
         midi = converter.parse(f)
         notes_to_parse = None
